@@ -130,3 +130,50 @@ impl<'__de, T: Entity + ?Sized, __Context> bincode::BorrowDecode<'__de, __Contex
         })
     }
 }
+
+#[cfg(feature = "serde")]
+impl<T: Entity + ?Sized> serde::Serialize for Id<T> {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: serde::Serializer,
+    {
+        serializer.serialize_str(&self.value)
+    }
+}
+
+#[cfg(feature = "serde")]
+struct IdVisitor<T: Entity + ?Sized> {
+    marker: PhantomData<T>,
+}
+
+#[cfg(feature = "serde")]
+impl<'de, T: Entity + ?Sized> serde::de::Visitor<'de> for IdVisitor<T> {
+    type Value = Id<T>;
+
+    fn expecting(&self, formatter: &mut Formatter) -> std::fmt::Result {
+        formatter.write_str("a string representing an ID")
+    }
+
+    #[inline]
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        Ok(Id {
+            value: v.to_string(),
+            _marker: PhantomData,
+        })
+    }
+}
+
+#[cfg(feature = "serde")]
+impl<'de, T: Entity + ?Sized> serde::Deserialize<'de> for Id<T> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        deserializer.deserialize_str(IdVisitor {
+            marker: PhantomData::<T>,
+        })
+    }
+}

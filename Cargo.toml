@@ -9,11 +9,13 @@ repository.workspace = true
 [dependencies]
 bincode = { workspace = true, optional = true }
 codegen.workspace = true
+serde = { workspace = true, optional = true }
 thiserror.workspace = true
 ulid = { workspace = true, optional = true }
 
 [features]
 bincode = ["dep:bincode", "codegen/bincode", "bincode/derive"]
+serde = ["dep:serde"]
 ulid = ["dep:ulid"]
 
 [workspace]
@@ -39,6 +41,7 @@ codegen = { path = "codegen", package = "whim-codegen" }
 
 bincode = "2.0"
 quote = "1.0"
+serde = "1.0"
 syn = "2.0"
 thiserror = "2.0"
 ulid = "1.2"
