@@ -11,9 +11,9 @@ pub struct Id<T: Entity + ?Sized> {
 
 impl<T: Entity + ?Sized> Id<T> {
     /// Creates a new [`Id`] with the given string value.
-    pub fn new(value: String) -> Self {
+    pub fn new<V: Into<String>>(value: V) -> Self {
         Id {
-            value,
+            value: value.into(),
             _marker: PhantomData,
         }
     }
