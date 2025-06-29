@@ -8,8 +8,6 @@ pub mod tables;
 
 #[derive(Error, Debug)]
 pub enum Error {
-    #[error("Table `{0}` was not found in database")]
-    TableNotFound(&'static str),
     #[error("Tried to insert row with existing ID: `{0}` for entity `{1}`")]
     EntityAlreadyExists(String, &'static str),
     #[error("Entity not found with ID: `{0}` for entity `{1}`")]
