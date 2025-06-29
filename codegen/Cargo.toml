@@ -1,0 +1,17 @@
+[package]
+name = "whim-codegen"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+proc-macro = true
+
+[dependencies]
+quote.workspace = true
+syn = { workspace = true, features = ["full"] }
+
+[features]
+bincode = []
