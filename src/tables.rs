@@ -6,14 +6,14 @@ use crate::search::{SearchConfig, SearchEngine, SearchResult, Searchable};
 use std::any::TypeId;
 use std::collections::{BTreeMap, HashMap};
 use std::ops::Deref;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 /// A table that stores entities in a BTreeMap.
 /// It provides basic CRUD operations and supports fuzzy text search through a search engine.
 pub struct Table<T: Entity> {
     /// For now, we use a BTreeMap for simplicity.
     entities: BTreeMap<Id<T>, Entry<T>>,
-    search_engine: Option<SearchEngine<T>>,
+    search_engine: Arc<Mutex<Option<SearchEngine<T>>>>,
     indices: HashMap<TypeId, IndexStorage<T>>,
 }
 
@@ -38,7 +38,9 @@ impl<T: Entity> Table<T> {
         }
 
         self.entities.insert(id.clone(), entry);
-        self.search_engine = None; // Reset search engine on insert
+
+        // Reset search engine on insert
+        self.search_engine = Arc::new(Mutex::new(None));
 
         Ok(self.entities.get(&id).unwrap())
     }
@@ -78,7 +80,9 @@ impl<T: Entity> Table<T> {
         }
 
         self.entities.insert(id.clone(), entry);
-        self.search_engine = None; // Reset search engine on update
+
+        // Reset search engine on update
+        self.search_engine = Arc::new(Mutex::new(None));
 
         Ok(self.entities.get(&id).unwrap())
     }
@@ -97,7 +101,8 @@ impl<T: Entity> Table<T> {
             storage.forget(&existing_entry);
         }
 
-        self.search_engine = None; // Reset search engine on delete
+        // Reset search engine on delete
+        self.search_engine = Arc::new(Mutex::new(None));
         Ok(())
     }
 
@@ -129,16 +134,21 @@ impl<T: Entity> Table<T> {
 
 impl<T: Entity + Searchable> Table<T> {
     /// Searches for entities in the table based on a query string (fuzzy text search).
-    pub fn search(&mut self, query: &str) -> Vec<SearchResult<T>> {
-        if self.search_engine.is_none() {
-            // Init search engine if it isn't set up yet
-            self.search_engine = Some(SearchEngine::new(
+    pub fn search(&self, query: &str) -> Vec<SearchResult<T>> {
+        let Ok(mut engine) = self.search_engine.lock() else {
+            // If the lock is poisoned, we return an empty search result
+            return Vec::new();
+        };
+
+        if engine.is_none() {
+            // If the search engine is not initialized, create a new one
+            *engine = Some(SearchEngine::new(
                 self.entities.values().cloned().collect(),
                 SearchConfig::default(),
             ));
         }
 
-        self.search_engine.as_ref().unwrap().search(query)
+        engine.as_ref().unwrap().search(query)
     }
 }
 
@@ -146,7 +156,7 @@ impl<T: Entity> Default for Table<T> {
     fn default() -> Self {
         Table {
             entities: BTreeMap::new(),
-            search_engine: None,
+            search_engine: Arc::new(Mutex::new(None)),
             indices: HashMap::new(),
         }
     }
@@ -176,7 +186,7 @@ where
     ) -> Result<Self, bincode::error::DecodeError> {
         Ok(Self {
             entities: bincode::Decode::decode(decoder)?,
-            search_engine: None,
+            search_engine: Arc::new(Mutex::new(None)),
             indices: HashMap::new(),
         })
     }
@@ -192,7 +202,7 @@ where
     ) -> Result<Self, bincode::error::DecodeError> {
         Ok(Self {
             entities: bincode::BorrowDecode::<'_, __Context>::borrow_decode(decoder)?,
-            search_engine: None,
+            search_engine: Arc::new(Mutex::new(None)),
             indices: HashMap::new(),
         })
     }
