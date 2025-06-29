@@ -202,7 +202,7 @@ where
 /// This has a cheap clone, as it will only clone the Arc.
 /// For mutability, you can call `into_owned` to get an owned version of the entity,
 /// update it and call `update` on the table / database to persist changes.
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(Debug, PartialOrd, Ord)]
 pub struct Entry<T> {
     entity: Arc<T>,
 }
@@ -222,6 +222,14 @@ impl<T> Clone for Entry<T> {
         }
     }
 }
+
+impl<T> PartialEq for Entry<T> {
+    fn eq(&self, other: &Self) -> bool {
+        Arc::ptr_eq(&self.entity, &other.entity)
+    }
+}
+
+impl<T> Eq for Entry<T> {}
 
 impl<T: Clone> Entry<T> {
     /// Clone the internal value, returning an owned version of the entity.
