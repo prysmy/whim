@@ -202,7 +202,7 @@ where
 /// This has a cheap clone, as it will only clone the Arc.
 /// For mutability, you can call `into_owned` to get an owned version of the entity,
 /// update it and call `update` on the table / database to persist changes.
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Entry<T> {
     entity: Arc<T>,
 }
