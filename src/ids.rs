@@ -3,6 +3,7 @@ use crate::search::{BitapSearcher, NgramIndexer, Searchable};
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::marker::PhantomData;
+use std::str::FromStr;
 
 pub struct Id<T: Entity + ?Sized> {
     value: String,
@@ -92,6 +93,35 @@ impl<T: Entity + ?Sized> Searchable for Id<T> {
 impl<T: Entity + ?Sized> Display for Id<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.value())
+    }
+}
+
+impl<T: Entity + ?Sized> From<String> for Id<T> {
+    fn from(value: String) -> Self {
+        Id {
+            value,
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T: Entity + ?Sized> From<&str> for Id<T> {
+    fn from(value: &str) -> Self {
+        Id {
+            value: value.to_string(),
+            _marker: PhantomData,
+        }
+    }
+}
+
+impl<T: Entity + ?Sized> FromStr for Id<T> {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(Id {
+            value: s.to_string(),
+            _marker: PhantomData,
+        })
     }
 }
 
