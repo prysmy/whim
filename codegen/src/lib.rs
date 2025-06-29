@@ -119,7 +119,7 @@ pub fn index(attrs: TokenStream, item: TokenStream) -> TokenStream {
         .output
         .to_token_stream()
         .to_string()
-        .contains("Vec<");
+        .contains("Vec");
 
     let return_statement = if is_vec {
         quote! {
