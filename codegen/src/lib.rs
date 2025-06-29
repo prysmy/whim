@@ -1,5 +1,5 @@
 use proc_macro::TokenStream;
-use quote::{format_ident, quote};
+use quote::{ToTokens, format_ident, quote};
 use syn::{ItemFn, ItemStruct, parse_macro_input};
 
 #[proc_macro_derive(Entity, attributes(id))]
@@ -113,17 +113,35 @@ pub fn index(attrs: TokenStream, item: TokenStream) -> TokenStream {
     let vis = &function.vis;
     let function_name = &function.sig.ident;
 
+    // Kinda hacky way to check if the function returns a Vec<Index> or not
+    let is_vec = function
+        .sig
+        .output
+        .to_token_stream()
+        .to_string()
+        .contains("Vec<");
+
+    let return_statement = if is_vec {
+        quote! {
+            #function_name(entity).iter().map(|index| {
+                whim::indices::Index::from(index)
+            }).collect()
+        }
+    } else {
+        quote! {
+            vec![whim::indices::Index::from(#function_name(entity))]
+        }
+    };
+
     quote! {
         #vis struct #index_name;
 
         impl whim::indices::Indexer for #index_name {
             type Entity = #entity;
 
-            fn get_index(&mut self, entity: &whim::tables::Entry<Self::Entity>) -> String {
+            fn get_indicies(&mut self, entity: &whim::tables::Entry<Self::Entity>) -> Vec<whim::indices::Index> {
                 #function
-
-                // Call the function to get the index value
-                #function_name(entity)
+                #return_statement
             }
         }
     }

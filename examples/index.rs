@@ -17,8 +17,8 @@ struct Note {
 }
 
 #[index(NoteCreatedAtIndex, Note)]
-fn created_at_index(note: &Entry<Note>) -> String {
-    note.created_at.to_string()
+fn created_at_index(note: &Entry<Note>) -> u64 {
+    note.created_at
 }
 
 fn main() {
