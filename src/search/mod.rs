@@ -24,7 +24,7 @@ impl Default for SearchConfig {
 }
 
 /// Represents a search result containing an entry and its score.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialOrd)]
 pub struct SearchResult<T> {
     pub entry: Entry<T>,
     pub score: f32,
@@ -35,6 +35,14 @@ impl<T> SearchResult<T> {
         SearchResult { entry, score }
     }
 }
+
+impl<T> PartialEq for SearchResult<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.entry == other.entry && self.score == other.score
+    }
+}
+
+impl<T> Eq for SearchResult<T> {}
 
 /// A search engine that allows for fuzzy searching of entries.
 pub struct SearchEngine<T> {
