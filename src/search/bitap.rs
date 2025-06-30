@@ -28,10 +28,10 @@ impl<'a> BitapSearcher<'a> {
             let end = indices
                 .clone()
                 .nth(end - 1)
-                .map(|(idx, _)| idx + 1)
+                .map(|(idx, _)| idx)
                 .unwrap_or(text_len);
 
-            for (j, character) in text[start..end].chars().enumerate() {
+            for (j, character) in text[start..=end].chars().enumerate() {
                 r = ((r << 1) | 1) & self.pattern_mask[character as usize];
 
                 if r & (1 << j) == 0 {

@@ -55,10 +55,10 @@ impl NgramIndexer {
             let end = indices
                 .clone()
                 .nth(i + self.ngram_size - 1)
-                .map(|(idx, _)| idx + 1)
+                .map(|(idx, _)| idx)
                 .unwrap_or(len);
 
-            ngrams.push(input[start..end].to_string());
+            ngrams.push(input[start..=end].to_string());
         }
 
         ngrams
