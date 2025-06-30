@@ -27,11 +27,11 @@ impl<'a> BitapSearcher<'a> {
             let start = indices.clone().nth(i).map(|(idx, _)| idx).unwrap_or(0);
             let end = indices
                 .clone()
-                .nth(end - 1)
+                .nth(end)
                 .map(|(idx, _)| idx)
-                .unwrap_or(text_len);
+                .unwrap_or(text.len());
 
-            for (j, character) in text[start..=end].chars().enumerate() {
+            for (j, character) in text[start..end].chars().enumerate() {
                 r = ((r << 1) | 1) & self.pattern_mask[character as usize];
 
                 if r & (1 << j) == 0 {
