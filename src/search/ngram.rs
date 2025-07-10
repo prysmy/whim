@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 /// Used to create an index to easily narrow down search results
+#[derive(Debug, Clone)]
 pub struct NgramIndexer {
     /// The size of the n-grams to generate
     ngram_size: usize,

@@ -1,4 +1,5 @@
 /// We use the Bitap algorithm for fuzzy searching.
+#[derive(Debug)]
 pub struct BitapSearcher<'a> {
     /// The pattern to search for, in lowercase.
     pub(crate) pattern: &'a str,

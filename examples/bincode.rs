@@ -1,11 +1,12 @@
 //! Run this example with `cargo run --example bincode --features bincode`.
 //! This example will try to load a database from a file named `db.bin`, or create a new one if it doesn't exist.
 //! It will then push a new note and user into the database and save it back to the file.
+//! Note: currently indices are not saved, so you need to re-add them after loading the database.
 
 #![allow(dead_code)]
 
+use bincode::{Decode, Encode};
 use std::time::{SystemTime, UNIX_EPOCH};
-use whim::bincode::{Decode, Encode};
 use whim::prelude::*;
 
 #[derive(Entity, Encode, Decode)]

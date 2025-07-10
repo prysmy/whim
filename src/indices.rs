@@ -1,38 +1,41 @@
 use crate::prelude::Entity;
 use crate::tables::Entry;
+use std::any::Any;
 use std::collections::BTreeMap;
-use std::fmt::Display;
 
-pub trait Indexer {
+pub trait Indexer: Any {
     type Entity: Entity;
 
-    fn get_indicies(&mut self, entity: &Entry<Self::Entity>) -> Vec<Index>;
+    fn index(&mut self, entity: &Entry<Self::Entity>);
+    fn forget(&mut self, entity: &Entry<Self::Entity>);
+    fn as_any(&self) -> &dyn Any;
 }
 
-pub struct IndexStorage<E: Entity> {
-    indexer: Box<dyn Indexer<Entity = E>>,
-    data: BTreeMap<Index, Vec<Entry<E>>>,
+#[derive(Debug, Clone)]
+#[cfg_attr(feature = "bincode", derive(bincode::Encode, bincode::Decode))]
+pub struct IndexStorage<K: Ord, E> {
+    data: BTreeMap<K, Vec<Entry<E>>>,
 }
 
-impl<E: Entity> IndexStorage<E> {
-    pub fn new<I: Indexer<Entity = E> + 'static>(indexer: I) -> Self {
+impl<K: Ord, E> Default for IndexStorage<K, E> {
+    fn default() -> Self {
         IndexStorage {
-            indexer: Box::new(indexer),
             data: BTreeMap::new(),
         }
     }
+}
 
-    pub fn index(&mut self, entity: &Entry<E>) {
-        let keys = self.indexer.get_indicies(entity);
-
+impl<K: Ord, E> IndexStorage<K, E> {
+    pub fn push(&mut self, keys: Vec<K>, entity: &Entry<E>) {
         for key in keys {
             self.data.entry(key).or_default().push(entity.clone());
         }
     }
 
-    pub fn forget(&mut self, entity: &Entry<E>) {
-        let keys = self.indexer.get_indicies(entity);
-
+    pub fn forget(&mut self, keys: Vec<K>, entity: &Entry<E>)
+    where
+        E: Entity,
+    {
         for key in keys {
             let Some(entities) = self.data.get_mut(&key) else {
                 continue;
@@ -50,19 +53,10 @@ impl<E: Entity> IndexStorage<E> {
         }
     }
 
-    pub fn get(&self, key: &str) -> Vec<&Entry<E>> {
+    pub fn get(&self, key: &K) -> Vec<&Entry<E>> {
         self.data
-            .get(&key.into())
+            .get(key)
             .map(|entries| entries.iter().collect())
             .unwrap_or_default()
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct Index(String);
-
-impl<T: Display> From<T> for Index {
-    fn from(value: T) -> Self {
-        Index(value.to_string())
     }
 }

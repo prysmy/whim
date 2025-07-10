@@ -9,6 +9,7 @@ pub mod ngram;
 pub mod searchable;
 
 /// Configuration for the search engine.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct SearchConfig {
     pub ngram_size: usize,
     pub max_distance: usize,
@@ -45,6 +46,7 @@ impl<T> PartialEq for SearchResult<T> {
 impl<T> Eq for SearchResult<T> {}
 
 /// A search engine that allows for fuzzy searching of entries.
+#[derive(Debug, Clone)]
 pub struct SearchEngine<T> {
     entries: Vec<Entry<T>>,
     max_bitap_mismatches: usize,

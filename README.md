@@ -11,3 +11,13 @@
 - **Serialization**: With the `bincode` feature, tables can be serialized and deserialized.
 
 Check out the examples in the `examples` directory for usage.
+
+## Future Plans
+- **Better Indexing**: Bincode support / more control over indices.
+- **Multi-threading**: Improve usage in multi-threaded environments.
+- **Foreign keys / Relations**
+
+## TODO before release 0.1:
+- https://rust-lang.github.io/api-guidelines/checklist.html
+- tests
+- documentation

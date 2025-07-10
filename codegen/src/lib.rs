@@ -92,56 +92,115 @@ pub fn derive_searchable(item: TokenStream) -> TokenStream {
 }
 
 struct IndexerAttr {
-    index_name: syn::Ident,
-    entity: syn::Ident,
+    index_type: syn::Type,
+    entity_type: syn::Type,
 }
 
 impl syn::parse::Parse for IndexerAttr {
     fn parse(input: syn::parse::ParseStream) -> syn::Result<Self> {
-        let index_name: syn::Ident = input.parse()?;
-        input.parse::<syn::Token![,]>()?; // Expect a comma after the
-        let entity: syn::Ident = input.parse()?;
-        Ok(IndexerAttr { index_name, entity })
+        let index_type: syn::Type = input.parse()?;
+        input.parse::<syn::Token![->]>()?; // Expect a comma after the
+        let entity_type: syn::Type = input.parse()?;
+        Ok(IndexerAttr {
+            index_type,
+            entity_type,
+        })
     }
 }
 
+#[allow(clippy::cmp_owned)]
 #[proc_macro_attribute]
 pub fn index(attrs: TokenStream, item: TokenStream) -> TokenStream {
     let function = parse_macro_input!(item as ItemFn);
-    let IndexerAttr { index_name, entity } = syn::parse_macro_input!(attrs as IndexerAttr);
+    let IndexerAttr {
+        index_type,
+        entity_type,
+    } = syn::parse_macro_input!(attrs as IndexerAttr);
 
+    let attributes = &function.attrs;
     let vis = &function.vis;
-    let function_name = &function.sig.ident;
+    let struct_name = &function.sig.ident;
+    let generator_input = &function.sig.inputs;
+    let generator_output = &function.sig.output;
+    let generator_block = &function.block;
 
-    // Kinda hacky way to check if the function returns a Vec<Index> or not
-    let is_vec = function
-        .sig
-        .output
-        .to_token_stream()
-        .to_string()
-        .contains("Vec");
+    let return_type = match &function.sig.output {
+        syn::ReturnType::Default => {
+            return syn::Error::new_spanned(function.sig, "Indexer function must return a type")
+                .to_compile_error()
+                .into();
+        }
+        syn::ReturnType::Type(_, ty) => ty.to_token_stream().to_string(),
+    };
 
-    let return_statement = if is_vec {
+    let return_conversion = if return_type == format!("Vec < {} >", index_type.to_token_stream()) {
         quote! {
-            #function_name(entity).iter().map(|index| {
-                whim::indices::Index::from(index)
-            }).collect()
+            generator(entity)
+        }
+    } else if return_type == format!("Option < {} >", index_type.to_token_stream()) {
+        quote! {
+            generator(entity).into_iter().collect::<Vec<_>>()
+        }
+    } else if return_type == index_type.to_token_stream().to_string() {
+        quote! {
+            vec![generator(entity)]
         }
     } else {
-        quote! {
-            vec![whim::indices::Index::from(#function_name(entity))]
-        }
+        return syn::Error::new_spanned(
+            function.sig,
+            "Indexer function must return IndexType, Vec<IndexType> or Option<IndexType>",
+        )
+        .to_compile_error()
+        .into();
     };
 
     quote! {
-        #vis struct #index_name;
+        #(#attributes)*
+        #vis struct #struct_name {
+            storage: whim::indices::IndexStorage<#index_type, #entity_type>,
+        }
 
-        impl whim::indices::Indexer for #index_name {
-            type Entity = #entity;
+        impl #struct_name {
+            fn generate_indicies(
+                &self,
+                entity: &whim::tables::Entry<#entity_type>,
+            ) -> Vec<#index_type> {
+                fn generator(#generator_input) #generator_output #generator_block
 
-            fn get_indicies(&mut self, entity: &whim::tables::Entry<Self::Entity>) -> Vec<whim::indices::Index> {
-                #function
-                #return_statement
+                #return_conversion
+            }
+
+            pub fn find(
+                &self,
+                key: &#index_type,
+            ) -> Vec<&whim::tables::Entry<#entity_type>> {
+                self.storage.get(key)
+            }
+        }
+
+        impl whim::indices::Indexer for #struct_name {
+            type Entity = #entity_type;
+
+            fn index(&mut self, entity: &Entry<Self::Entity>) {
+                let keys = self.generate_indicies(entity);
+                self.storage.push(keys, entity);
+            }
+
+            fn forget(&mut self, entity: &Entry<Self::Entity>) {
+                let keys = self.generate_indicies(entity);
+                self.storage.forget(keys, entity);
+            }
+
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
+        }
+
+        impl Default for #struct_name {
+            fn default() -> Self {
+                Self {
+                    storage: whim::indices::IndexStorage::default(),
+                }
             }
         }
     }

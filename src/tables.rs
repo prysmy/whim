@@ -1,7 +1,7 @@
 use crate::Error;
 use crate::entities::Entity;
 use crate::ids::Id;
-use crate::indices::{IndexStorage, Indexer};
+use crate::indices::Indexer;
 use crate::search::{SearchConfig, SearchEngine, SearchResult, Searchable};
 use std::any::TypeId;
 use std::collections::{BTreeMap, HashMap};
@@ -14,10 +14,10 @@ pub struct Table<T: Entity> {
     /// For now, we use a BTreeMap for simplicity.
     entities: BTreeMap<Id<T>, Entry<T>>,
     search_engine: Arc<Mutex<Option<SearchEngine<T>>>>,
-    indices: HashMap<TypeId, IndexStorage<T>>,
+    indices: HashMap<TypeId, Box<dyn Indexer<Entity = T>>>,
 }
 
-impl<T: Entity> Table<T> {
+impl<T: Entity + 'static> Table<T> {
     /// Inserts a new entity into the table, returning a reference to the entry.
     pub fn insert(&mut self, entity: T) -> Result<&Entry<T>, Error> {
         let entry = Entry {
@@ -33,8 +33,8 @@ impl<T: Entity> Table<T> {
             ));
         }
 
-        for storage in self.indices.values_mut() {
-            storage.index(&entry);
+        for index in self.indices.values_mut() {
+            index.index(&entry);
         }
 
         self.entities.insert(id.clone(), entry);
@@ -66,8 +66,8 @@ impl<T: Entity> Table<T> {
         };
 
         // Remove the old entry from indices
-        for storage in self.indices.values_mut() {
-            storage.forget(existing_entry);
+        for index in self.indices.values_mut() {
+            index.forget(existing_entry);
         }
 
         let entry = Entry {
@@ -75,8 +75,8 @@ impl<T: Entity> Table<T> {
         };
 
         // Re-index the new entry
-        for storage in self.indices.values_mut() {
-            storage.index(&entry);
+        for index in self.indices.values_mut() {
+            index.index(&entry);
         }
 
         self.entities.insert(id.clone(), entry);
@@ -97,8 +97,8 @@ impl<T: Entity> Table<T> {
         };
 
         // Remove the entry from all indices
-        for storage in self.indices.values_mut() {
-            storage.forget(&existing_entry);
+        for index in self.indices.values_mut() {
+            index.forget(&existing_entry);
         }
 
         // Reset search engine on delete
@@ -107,28 +107,33 @@ impl<T: Entity> Table<T> {
     }
 
     /// Adds an indexer to the table, allowing for indexed queries.
-    pub fn add_index<I: Indexer<Entity = T> + 'static>(&mut self, indexer: I) {
+    pub fn add_index<I: Indexer<Entity = T> + 'static>(&mut self, mut indexer: I) {
         let type_id = TypeId::of::<I>();
 
-        let storage = self
-            .indices
-            .entry(type_id)
-            .or_insert_with(|| IndexStorage::new(indexer));
+        if self.indices.contains_key(&type_id) {
+            // If the indexer already exists, we can skip adding it again
+            return;
+        }
 
         for entry in self.entities.values() {
-            storage.index(entry);
+            indexer.index(entry);
         }
+
+        self.indices.insert(type_id, Box::new(indexer));
     }
 
     /// Finds entries in the table by a specific index key.
-    pub fn find_by_index<I: Indexer<Entity = T> + 'static>(&self, key: &str) -> Vec<&Entry<T>> {
+    pub fn get_index<I: Indexer<Entity = T> + 'static>(&self) -> Option<&I> {
         let type_id = TypeId::of::<I>();
 
-        if let Some(storage) = self.indices.get(&type_id) {
-            storage.get(key)
-        } else {
-            vec![]
+        if let Some(index) = self.indices.get(&type_id) {
+            // Downcast index from &Box<dyn Indexer<Entity = T>> to &I
+            if let Some(index) = index.as_any().downcast_ref::<I>() {
+                return Some(index);
+            }
         }
+
+        None
     }
 }
 
