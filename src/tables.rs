@@ -14,7 +14,7 @@ pub struct Table<T: Entity> {
     /// For now, we use a BTreeMap for simplicity.
     entities: BTreeMap<Id<T>, Entry<T>>,
     search_engine: Arc<Mutex<Option<SearchEngine<T>>>>,
-    indices: HashMap<TypeId, Box<dyn Indexer<Entity = T>>>,
+    indices: HashMap<TypeId, Box<dyn Indexer<Entity = T> + Send + Sync>>,
 }
 
 impl<T: Entity + 'static> Table<T> {
@@ -107,7 +107,7 @@ impl<T: Entity + 'static> Table<T> {
     }
 
     /// Adds an indexer to the table, allowing for indexed queries.
-    pub fn add_index<I: Indexer<Entity = T> + 'static>(&mut self, mut indexer: I) {
+    pub fn add_index<I: Indexer<Entity = T> + Send + Sync + 'static>(&mut self, mut indexer: I) {
         let type_id = TypeId::of::<I>();
 
         if self.indices.contains_key(&type_id) {
