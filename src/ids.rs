@@ -21,7 +21,7 @@ impl<T: Entity + ?Sized> Id<T> {
 
     /// Generates a new [`Id`] with a random Ulid.
     #[cfg(feature = "ulid")]
-    pub fn new_ulid(&self) -> Self {
+    pub fn new_ulid() -> Self {
         Self::new(ulid::Ulid::new().to_string())
     }
 
